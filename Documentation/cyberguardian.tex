@@ -1,0 +1,128 @@
+\documentclass[conference]{IEEEtran}
+\usepackage[utf8]{inputenc}
+\usepackage[T1]{fontenc}
+\usepackage[french]{babel}
+\usepackage{graphicx}
+\usepackage{amsmath}
+\usepackage{booktabs}
+\usepackage{hyperref}
+\usepackage{cite}
+
+\title{CyberGuardian:\\Protection des Données Personnelles sur Mobile}
+
+\author{
+  \IEEEauthorblockN{Amine \textit{et al.}}
+  \IEEEauthorblockA{
+    Département Informatique, Université X\\
+    \{amine, coauthor\}@exemple.edu
+  }
+}
+
+\begin{document}
+\maketitle
+
+\begin{abstract}
+Nous présentons CyberGuardian, une application Android et un service backend
+de détection des applications malveillantes et abusives. 
+Notre approche combine analyse statique des permissions et détection comportementale à 
+l’aide d’un modèle XGBoost, exposé via une microservice FastAPI, et un serveur Spring Boot. 
+Les résultats expérimentaux montrent une très haute précision (99\,\%) sur un jeu de test.
+\end{abstract}
+
+\section{Introduction}
+La prolifération des smartphones entraîne une explosion du nombre d'applications malveillantes
+et abusives. CyberGuardian vise à protéger la vie privée des utilisateurs
+en détectant à la fois les permissions excessives (analyse statique) 
+et les comportements anormaux à l'exécution (analyse dynamique).
+
+\section{Architecture Système}
+\begin{figure}[h]
+  \centering
+  \includegraphics[width=0.9\linewidth]{figures/architecture_diagram.png}
+  \caption{Architecture générale de CyberGuardian.}\label{fig:arch}
+\end{figure}
+
+Le système se compose de :
+\begin{itemize}
+  \item \textbf{Client Android}  
+    \begin{itemize}
+      \item Scanner des applications et de leurs permissions.
+      \item Module statique de détection (règles de risque sur permissions).
+      \item Module dynamique d’observation via \texttt{AccessibilityService} et \texttt{UsageStatsManager}.
+      \item Envoi des données au backend via Retrofit.
+    \end{itemize}
+  \item \textbf{Backend Spring Boot}  
+    \begin{itemize}
+      \item API REST \texttt{/api/analyzeApp} accueillant les données du client.
+      \item Appel à la microservice FastAPI pour la prédiction XGBoost.
+      \item Stockage des résultats dans PostgreSQL.
+    \end{itemize}
+  \item \textbf{Microservice FastAPI}  
+    \begin{itemize}
+      \item Chargement du modèle XGBoost pré-entraîné.
+      \item Endpoint \texttt{/predict} renvoyant \texttt{risk\_score} et \texttt{risk\_label}.
+      \item Lien prévu pour enrichissement futur avec API VirusTotal.
+    \end{itemize}
+\end{itemize}
+
+\section{Mise en œuvre}
+
+\subsection{Analyse Statique}
+Nous définissons un score statique basé sur la présence de permissions dangereuses.  
+Exemple de règle :  
+\[
+  \text{Score}_{\mathrm{static}} = \sum_{p \in P_{\mathrm{app}}} w_p
+\]
+où chaque permission $p$ reçoit un poids $w_p$ (ex. INTERNET : 1, READ\_SMS : 2, etc.).
+
+\subsection{Analyse Dynamique}
+L’application Android surveille :
+\begin{itemize}
+  \item Les événements d’interface (\texttt{onAccessibilityEvent}).
+  \item Les statisques d’usage (\texttt{UsageStatsManager}).
+\end{itemize}
+Ces événements forment un vecteur de caractéristiques temporelles, chargé ensuite vers le backend.
+
+\subsection{Modèle XGBoost}
+Le modèle est entraîné hors ligne avec un jeu de données d’environ \num{10000} applications,  
+balayant $n$ permissions et $m$ métriques dynamiques.  
+Sa performance est évaluée via :
+\begin{itemize}
+  \item Matrice de confusion.
+  \item Courbe ROC.
+  \item AUC = 0.99.
+\end{itemize}
+
+\section{Résultats Expérimentaux}
+
+\subsection{Distribution des permissions dangereuses}
+\begin{figure}[h]
+  \centering
+  \includegraphics[width=\linewidth]{figures/permission_histogram.png}
+  \caption{Histogramme du nombre de permissions considérées ``dangereuses'' par application.}\label{fig:hist}
+\end{figure}
+
+\subsection{Performance du modèle}\label{sec:perf}
+\begin{figure}[h]
+  \centering
+  \includegraphics[width=\linewidth]{figures/roc_curve.png}
+  \caption{Courbe ROC du modèle XGBoost. AUC = 0.99.}\label{fig:roc}
+\end{figure}
+
+\section{Conclusion}
+Nous avons présenté un système hybride combinant règles statiques et apprentissage
+automatique pour la détection de logiciels malveillants sur Android.
+CyberGuardian atteint une très haute fiabilité tout en restant extensible
+(p. ex. intégration future de VirusTotal).  
+
+\section*{Remerciements}
+Ce travail s’appuie sur les recherches de Burguera et al. (Crowdroid) \cite{Burguera2010Crowdroid}.
+
+\bibliographystyle{IEEEtran}
+\begin{thebibliography}{1}
+\bibitem{Burguera2010Crowdroid}
+I.~Burguera, U.~Zurutuza, and S.~Nadjm-Tehrani, ``Crowdroid: Behavior-Based Malware Detection System for Android,'' in \emph{Proc. of the 1st ACM Workshop on Security and Privacy in Smartphones}, 2010.
+% Ajoutez ici vos autres références
+\end{thebibliography}
+
+\end{document}

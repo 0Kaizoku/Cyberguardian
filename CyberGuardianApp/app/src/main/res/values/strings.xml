@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">CyberGuardian</string>
+    <string name="accessibility_service_description">CyberGuardian monitors app behavior for suspicious activities that may put your personal data at risk. This service helps identify malicious behavior patterns in real-time.</string>
+    <string name="scan_button">Scan Installed Apps</string>
+    <string name="enable_accessibility">Enable Accessibility Service</string>
+    <string name="enable_usage_stats">Enable Usage Stats Access</string>
+    <string name="permission_required">Required permissions not granted</string>
+    <string name="scanning">Scanning installed applications…</string>
+    <string name="scan_complete">Scan completed. Found %1$d apps.</string>
+    <string name="scan_error">Scan failed: %1$s</string>
+    <string name="risk_level_benign">Safe</string>
+    <string name="risk_level_suspicious">Suspicious</string>
+    <string name="risk_level_malicious">Dangerous</string>
+    <string name="risk_level_unknown">Unknown</string>
+    <string name="permissions_count">Permissions: %1$d</string>
+    <string name="dangerous_permissions_count">Dangerous permissions: %1$d</string>
+</resources>
