@@ -31,7 +31,8 @@ class PermissionChecker {
         "android.permission.READ_CALL_LOG",
         "android.permission.WRITE_CALL_LOG",
         "android.permission.READ_EXTERNAL_STORAGE",
-        "android.permission.WRITE_EXTERNAL_STORAGE"
+        "android.permission.WRITE_EXTERNAL_STORAGE",
+        "android.permission.BLUETOOTH_CONNECT" // <-- Added new dangerous permission
     )
 
     /**
@@ -74,7 +75,7 @@ class PermissionChecker {
     /**
      * Determine risk level based on risk score
      */
-    private fun determineRiskLevel(riskScore: Double): RiskLevel {
+    fun determineRiskLevel(riskScore: Double): RiskLevel {
         return when {
             riskScore < 0.3 -> RiskLevel.BENIGN
             riskScore < 0.6 -> RiskLevel.SUSPICIOUS
@@ -140,3 +141,4 @@ class PermissionChecker {
 //        val riskScore: Double,
 //        val riskLevel: RiskLevel
 //    )
+

@@ -19,6 +19,8 @@ import com.cyberguardianapp.service.AppMonitorAccessibilityService
 import com.cyberguardianapp.service.AppScannerService
 import com.cyberguardianapp.util.PermissionChecker
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.async
+import kotlinx.coroutines.awaitAll
 import android.widget.Button
 import android.widget.ProgressBar
 import android.widget.TextView
@@ -46,7 +48,7 @@ class MainActivity : AppCompatActivity() {
     private val appScannerService = AppScannerService()
     private val permissionChecker = PermissionChecker()
     private val backendApi = Retrofit.Builder()
-        .baseUrl("http://10.0.2.2:8080/")
+        .baseUrl("http://10.0.2.2:8081/")
         .addConverterFactory(GsonConverterFactory.create())
         .build()
         .create(BackendApi::class.java)
@@ -154,20 +156,18 @@ class MainActivity : AppCompatActivity() {
             try {
                 val installedApps = appScannerService.getInstalledApps(applicationContext)
                 lastScannedApps = installedApps // Save for later lookup
-                val backendResults = mutableListOf<RiskResponse>()
 
-                for (app in installedApps) {
-                    appAnalyzer.analyzeApp(
-                        packageName = app.packageName,
-                        appName = app.appName,
-                        permissions = app.permissions,
-                        versionCode = app.versionCode
-                    ).onSuccess { response ->
-                        backendResults.add(response)
-                    }.onFailure { exception ->
-                        Log.e("MainActivity", "Failed to analyze app: ${app.packageName}", exception)
+                // Launch all backend calls concurrently using async
+                val backendResults = installedApps.map { app ->
+                    async {
+                        appAnalyzer.analyzeApp(
+                            packageName = app.packageName,
+                            appName = app.appName,
+                            permissions = app.permissions,
+                            versionCode = app.versionCode
+                        ).getOrNull()
                     }
-                }
+                }.awaitAll().filterNotNull()
 
                 runOnUiThread {
                     statusText.text = "Scan completed. Found ${backendResults.size} apps analyzed."
@@ -256,4 +256,3 @@ class MainActivity : AppCompatActivity() {
         updatePermissionStatus()
     }
 }
-

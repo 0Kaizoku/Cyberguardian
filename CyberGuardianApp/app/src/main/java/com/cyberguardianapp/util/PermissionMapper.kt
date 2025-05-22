@@ -15,7 +15,8 @@ object PermissionMapper {
         "android.permission.RECEIVE_SMS" to "Your messages : receive SMS (D)",
         "android.permission.READ_SMS" to "Your messages : read SMS or MMS (D)",
         "android.permission.READ_EXTERNAL_STORAGE" to "Storage : modify/delete USB storage contents modify/delete SD card contents (D)",
-        "android.permission.WRITE_EXTERNAL_STORAGE" to "Storage : modify/delete USB storage contents modify/delete SD card contents (D)"
+        "android.permission.WRITE_EXTERNAL_STORAGE" to "Storage : modify/delete USB storage contents modify/delete SD card contents (D)",
+        "android.permission.BLUETOOTH_CONNECT" to "Hardware controls : connect to Bluetooth devices (D)" // <-- Added mapping
         // Add more mappings as needed
     )
 

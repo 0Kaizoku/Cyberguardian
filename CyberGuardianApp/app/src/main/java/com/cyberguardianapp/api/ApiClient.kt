@@ -24,6 +24,19 @@ data class AppScanRequest(
 )
 
 /**
+ * Example JSON body sent to the backend for app analysis:
+ * {
+ *   "package_name": "com.example.app",
+ *   "app_name": "Example App",
+ *   "permissions": [
+ *     "android.permission.CAMERA",
+ *     "android.permission.READ_CONTACTS"
+ *   ],
+ *   "version_code": 42
+ * }
+ */
+
+/**
  * Data class for risk prediction response from the server
  */
 data class RiskPredictionResponse(
@@ -54,7 +67,7 @@ interface CyberGuardianApi {
 * i modified http://10.0.2.2:8080
 * */
 object ApiClient {
-    private const val BASE_URL = "http://localhost:8081/" // Points to localhost on the host machine when using emulator
+    private const val BASE_URL = "http://10.0.2.2:8081/" // Use this for Android emulator to reach host machine
     
     private val okHttpClient by lazy {
         val logging = HttpLoggingInterceptor().apply {
@@ -90,3 +103,4 @@ object ApiClient {
         }
     }
 }
+
