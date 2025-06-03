@@ -34,6 +34,8 @@
             </intent-filter>
         </activity>
         
+        <activity android:name=".AppRiskDetailActivity" />
+        
         <service
             android:name=".service.AppMonitorAccessibilityService"
             android:permission="android.permission.BIND_ACCESSIBILITY_SERVICE"

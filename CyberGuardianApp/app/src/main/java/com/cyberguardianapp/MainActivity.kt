@@ -25,14 +25,8 @@ import android.widget.Button
 import android.widget.ProgressBar
 import android.widget.TextView
 import androidx.recyclerview.widget.RecyclerView
-import com.cyberguardianapp.api.BackendApi
 import com.cyberguardianapp.model.AnalyzeAppRequest
 import com.cyberguardianapp.model.RiskResponse
-import retrofit2.Retrofit
-import retrofit2.converter.gson.GsonConverterFactory
-import retrofit2.Call
-import retrofit2.Callback
-import retrofit2.Response
 import android.util.Log
 import com.cyberguardianapp.analyzer.AppAnalyzer
 
@@ -47,13 +41,7 @@ class MainActivity : AppCompatActivity() {
     
     private val appScannerService = AppScannerService()
     private val permissionChecker = PermissionChecker()
-    private val backendApi = Retrofit.Builder()
-        .baseUrl("http://10.0.2.2:8081/")
-        .addConverterFactory(GsonConverterFactory.create())
-        .build()
-        .create(BackendApi::class.java)
-    
-    private val appAnalyzer = AppAnalyzer(permissionChecker, backendApi)
+    private val appAnalyzer = AppAnalyzer(ApiClient.api)
 
     // Store the last scanned installed apps for lookup
     private var lastScannedApps: List<AppInfo> = emptyList()
@@ -70,13 +58,14 @@ class MainActivity : AppCompatActivity() {
         statusText = findViewById(R.id.statusText)
         appListRecyclerView = findViewById(R.id.appListRecyclerView)
         
-        // Set up RecyclerView
+        // Set up RecyclerView with empty list and empty click lambda
         appListRecyclerView.layoutManager = LinearLayoutManager(this)
-        appListRecyclerView.adapter = AppListAdapter(emptyList())
+        appListRecyclerView.adapter = AppListAdapter(emptyList()) { }
         
         // Set up button click listeners
         setupButtonListeners()
-        
+
+
         // Check required permissions
         updatePermissionStatus()
     }
@@ -156,23 +145,11 @@ class MainActivity : AppCompatActivity() {
             try {
                 val installedApps = appScannerService.getInstalledApps(applicationContext)
                 lastScannedApps = installedApps // Save for later lookup
-
-                // Launch all backend calls concurrently using async
-                val backendResults = installedApps.map { app ->
-                    async {
-                        appAnalyzer.analyzeApp(
-                            packageName = app.packageName,
-                            appName = app.appName,
-                            permissions = app.permissions,
-                            versionCode = app.versionCode
-                        ).getOrNull()
-                    }
-                }.awaitAll().filterNotNull()
-
                 runOnUiThread {
-                    statusText.text = "Scan completed. Found ${backendResults.size} apps analyzed."
-                    updateAppListWithBackendResults(backendResults)
+                    statusText.text = "Scan completed. Found ${installedApps.size} apps."
+                    updateAppList(installedApps)
                 }
+                progressBar.visibility = View.GONE
             } catch (e: Exception) {
                 progressBar.visibility = View.GONE
                 statusText.text = "Error: ${e.message}"
@@ -182,73 +159,47 @@ class MainActivity : AppCompatActivity() {
     }
     
     private fun updateAppList(apps: List<AppInfo>) {
-        appListRecyclerView.adapter = AppListAdapter(apps)
-    }
-    
-    private fun updateAppListWithBackendResults(backendResults: List<RiskResponse>) {
-        // Map packageName to AppInfo for quick lookup
-        val appInfoMap = lastScannedApps.associateBy { it.packageName }
-        val appInfoList = backendResults.mapNotNull { riskResponse ->
-            val appInfo = appInfoMap[riskResponse.package_name]
-            if (appInfo != null) {
-                AppInfo(
-                    packageName = riskResponse.package_name,
+        appListRecyclerView.adapter = AppListAdapter(apps) { appInfo ->
+            lifecycleScope.launch {
+                val result = appAnalyzer.analyzeApp(
+                    packageName = appInfo.packageName,
                     appName = appInfo.appName,
-                    versionCode = appInfo.versionCode,
-                    versionName = appInfo.versionName,
-                    appIcon = appInfo.appIcon,
-                    installTime = appInfo.installTime,
-                    updateTime = appInfo.updateTime,
                     permissions = appInfo.permissions,
-                    riskLevel = try {
-                        RiskLevel.valueOf(riskResponse.risk_label.uppercase())
-                    } catch (e: Exception) {
-                        RiskLevel.UNKNOWN // Fallback if label doesn't match enum
-                    },
-                    riskScore = riskResponse.risk_score
+                    versionCode = appInfo.versionCode
                 )
-            } else {
-                null // Skip if not found
+                val riskResponse = result.getOrNull()
+                if (riskResponse != null) {
+                    val intent = Intent(this@MainActivity, AppRiskDetailActivity::class.java)
+                    intent.putExtra("app_name", appInfo.appName)
+                    intent.putExtra("risk_label", riskResponse.risk_label)
+                    intent.putExtra("risk_score", riskResponse.risk_score)
+                    intent.putExtra("backend_risk_label", riskResponse.backend_risk_label)
+                    intent.putExtra("backend_risk_score", riskResponse.backend_risk_score ?: 0.0)
+                    startActivity(intent)
+                }
             }
         }
-        appListRecyclerView.adapter = AppListAdapter(appInfoList)
     }
     
     private fun analyzeAppOnBackend() {
-        val retrofit = Retrofit.Builder()
-            .baseUrl("http://10.0.2.2:8081/") // Use your backend's IP if on a real device
-            .addConverterFactory(GsonConverterFactory.create())
-            .build()
-
-        val backendApi = retrofit.create(BackendApi::class.java)
-
-        val request = AnalyzeAppRequest(
-            package_name = "com.example.app",
-            app_name = "Example App",
-            permissions = listOf("INTERNET", "READ_CONTACTS"),
-            version_code = 1
-        )
-
-        backendApi.analyzeApp(request).enqueue(object : Callback<RiskResponse> {
-            override fun onResponse(call: Call<RiskResponse>, response: Response<RiskResponse>) {
-                if (response.isSuccessful && response.body() != null) {
-                    val risk = response.body()!!
-                    runOnUiThread {
-                        statusText.text = "Risk: ${risk.risk_label}, Score: ${risk.risk_score}"
-                    }
-                } else {
-                    runOnUiThread {
-                        statusText.text = "Error: ${response.code()}"
-                    }
-                }
-            }
-
-            override fun onFailure(call: Call<RiskResponse>, t: Throwable) {
+        lifecycleScope.launch {
+            try {
+                val request = AnalyzeAppRequest(
+                    package_name = "com.example.app",
+                    app_name = "Example App",
+                    permissions = listOf("INTERNET", "READ_CONTACTS"),
+                    version_code = 1
+                )
+                val risk = ApiClient.api.analyzeApp(request)
                 runOnUiThread {
-                    statusText.text = "Network error: ${t.message}"
+                    statusText.text = "Risk: ${risk.risk_label}, Score: ${risk.risk_score}"
+                }
+            } catch (e: Exception) {
+                runOnUiThread {
+                    statusText.text = "Error: ${e.message}"
                 }
             }
-        })
+        }
     }
     
     override fun onResume() {

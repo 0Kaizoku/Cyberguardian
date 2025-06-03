@@ -1,17 +1,14 @@
 package com.cyberguardianapp.analyzer
 
-import com.cyberguardianapp.api.BackendApi
+import com.cyberguardianapp.api.CyberGuardianApi
 import com.cyberguardianapp.model.AnalyzeAppRequest
 import com.cyberguardianapp.model.RiskResponse
-import com.cyberguardianapp.util.PermissionChecker
-import retrofit2.Response
 import android.util.Log
 
 class AppAnalyzer(
-    private val permissionChecker: PermissionChecker,
-    private val backendApi: BackendApi
+    private val api: CyberGuardianApi // Make sure to pass ApiClient.api here!
 ) {
-
+    // Call this from a coroutine scope!
     suspend fun analyzeApp(
         packageName: String,
         appName: String,
@@ -19,27 +16,23 @@ class AppAnalyzer(
         versionCode: Int
     ): Result<RiskResponse> {
         return try {
-            // 1. Prepare data for ML model
-            val modelRequest = permissionChecker.prepareForModelAnalysis(
-                packageName = packageName,
-                appName = appName,
+            val modelRequest = AnalyzeAppRequest(
+                package_name = packageName,
+                app_name = appName,
                 permissions = permissions,
-                versionCode = versionCode
+                version_code = versionCode
             )
-
-            // Log the outgoing request for debugging
             Log.d("AppAnalyzer", "Sending to backend: $modelRequest")
-
-            // 2. Send to ML model and get results
-            val response = backendApi.analyzeApp(modelRequest).execute()
-
-            if (response.isSuccessful && response.body() != null) {
-                Result.success(response.body()!!)
-            } else {
-                Result.failure(Exception("Analysis failed: ${response.code()}"))
-            }
+            val response = api.analyzeApp(modelRequest) // suspend function, returns RiskResponse
+            Log.d("AppAnalyzer", "Data sent successfully: $response")
+            Result.success(response)
         } catch (e: Exception) {
+            Log.e("AppAnalyzer", "Failed to send data: ${e.message}", e)
             Result.failure(e)
         }
     }
 }
+
+// Usage example (in Activity/Fragment/ViewModel):
+// val appAnalyzer = AppAnalyzer(ApiClient.api)
+// lifecycleScope.launch { appAnalyzer.analyzeApp(...) }
