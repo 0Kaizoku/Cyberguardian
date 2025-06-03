@@ -50,7 +50,7 @@ interface CyberGuardianApi {
 }
 
 object ApiClient {
-    private const val BASE_URL = "http://10.0.2.2:8081/" // Use this for Android emulator to reach host machine
+    private const val BASE_URL = "http://192.168.11.160:8081/" // Use this for Android emulator to reach host machine
     
     private val okHttpClient by lazy {
         val loggingInterceptor = HttpLoggingInterceptor().apply {

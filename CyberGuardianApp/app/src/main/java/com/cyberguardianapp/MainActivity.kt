@@ -160,6 +160,7 @@ class MainActivity : AppCompatActivity() {
     
     private fun updateAppList(apps: List<AppInfo>) {
         appListRecyclerView.adapter = AppListAdapter(apps) { appInfo ->
+            progressBar.visibility = View.VISIBLE
             lifecycleScope.launch {
                 val result = appAnalyzer.analyzeApp(
                     packageName = appInfo.packageName,
@@ -167,6 +168,7 @@ class MainActivity : AppCompatActivity() {
                     permissions = appInfo.permissions,
                     versionCode = appInfo.versionCode
                 )
+                progressBar.visibility = View.GONE
                 val riskResponse = result.getOrNull()
                 if (riskResponse != null) {
                     val intent = Intent(this@MainActivity, AppRiskDetailActivity::class.java)
@@ -176,6 +178,8 @@ class MainActivity : AppCompatActivity() {
                     intent.putExtra("backend_risk_label", riskResponse.backend_risk_label)
                     intent.putExtra("backend_risk_score", riskResponse.backend_risk_score ?: 0.0)
                     startActivity(intent)
+                } else {
+                    Toast.makeText(this@MainActivity, "Failed to analyze app", Toast.LENGTH_SHORT).show()
                 }
             }
         }
